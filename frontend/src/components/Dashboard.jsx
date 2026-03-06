@@ -131,7 +131,6 @@ export default function Dashboard({ ALL_TOKENS, activeTokens, setActiveTokens, s
                                 <div
                                     className="bar-fill"
                                     style={{
-                                        width: fillWidth,
                                         background: gradientColor,
                                         transformOrigin: s.score >= 0 ? 'left' : 'right',
                                         marginLeft: s.score >= 0 ? '50%' : `${50 - Math.abs(s.score)}%`,
