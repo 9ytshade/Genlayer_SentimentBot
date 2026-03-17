@@ -1,13 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { WalletProvider, useWallet } from './context/WalletContext';
+import AuthModal from './components/auth/AuthModal';
 import Dashboard from './components/Dashboard';
 import Portfolio from './components/Portfolio';
 import Leaderboard from './components/Leaderboard';
 import Settings from './components/Settings';
 
-function App() {
+// ── Inner app (shown only when authenticated) ────────────────────────────────
+function AuthenticatedApp({ addToast }) {
+    const { user, logout } = useWallet();
     const [activeTab, setActiveTab] = useState('dashboard');
+    const [isWalletHovered, setIsWalletHovered] = useState(false);
 
-    // V3: Expanded tokens and active selection
     const ALL_TOKENS = ['BTC', 'ETH', 'SOL', 'BNB', 'ADA', 'XRP', 'DOT', 'DOGE'];
     const [activeTokens, setActiveTokens] = useState(['BTC', 'ETH', 'SOL', 'BNB']);
 
@@ -18,63 +22,32 @@ function App() {
         confidence: Math.floor(Math.random() * 40 + 50),
         source: 'cryptopanic.com',
         price: Math.random() * (sym === 'BTC' ? 90000 : sym === 'ETH' ? 4000 : 100) + 10,
-        change24h: (Math.random() * 10 - 5).toFixed(2)
+        change24h: (Math.random() * 10 - 5).toFixed(2),
     })));
 
+    // Portfolio starts at 0 — user funds it via the deposit section
     const [portfolio, setPortfolio] = useState({
-        fiatBalance: 5000,
-        cryptoValue: 10000,
-        weights: { BTC: 40, ETH: 30, SOL: 20, BNB: 10 }
+        fiatBalance: 0,
+        cryptoValue: 0,
+        weights: { BTC: 12, ETH: 12, SOL: 12, BNB: 12, ADA: 13, XRP: 13, DOT: 13, DOGE: 13 },
     });
 
     const [trades, setTrades] = useState([]);
-
-    const [leaderboard, setLeaderboard] = useState([
-        { caller: '0xABC...123', score: 15 },
-        { caller: '0xDEF...456', score: 12 },
-        { caller: '0x789...XYZ', score: 8 }
-    ]);
-
-    // v2 Features State
-    const [walletAddress, setWalletAddress] = useState(null);
-    const [userProfile, setRiskProfile] = useState(2); // 1, 2, 3
+    const [userProfile, setRiskProfile] = useState(2);
     const [customSources, setCustomSources] = useState({});
-    const [toasts, setToasts] = useState([]);
-    const [isWalletHovered, setIsWalletHovered] = useState(false);
 
-    const addToast = (type, message) => {
-        const id = Date.now();
-        setToasts(prev => [...prev, { id, type, message }]);
-        setTimeout(() => {
-            setToasts(prev => prev.filter(t => t.id !== id));
-        }, 4000);
+    const handleDisconnect = () => {
+        logout();
+        addToast('👋 Logged out. See you soon!', 'info');
     };
 
-    const handleConnectWallet = () => {
-        if (walletAddress) {
-            setWalletAddress(null);
-            addToast('info', 'Wallet disconnected.');
-        } else {
-            const mockAddr = '0x' + Array.from({ length: 40 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
-            setWalletAddress(mockAddr);
-            addToast('success', 'Wallet connected successfully!');
-        }
-    };
+    const walletAddress = user?.walletAddress ?? null;
+    const shortAddr = walletAddress
+        ? `${walletAddress.substring(0, 6)}...${walletAddress.slice(-4)}`
+        : null;
 
     return (
         <div className="app-container">
-            {/* Toast Notifications */}
-            <div className="toast-container">
-                {toasts.map(t => (
-                    <div key={t.id} className={`toast toast-${t.type}`}>
-                        {t.type === 'success' && '✅ '}
-                        {t.type === 'error' && '❌ '}
-                        {t.type === 'info' && 'ℹ️ '}
-                        {t.message}
-                    </div>
-                ))}
-            </div>
-
             <header>
                 <div>
                     <h1>SentimentAgent</h1>
@@ -82,18 +55,18 @@ function App() {
                 </div>
                 <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                     <div className="status-badge">
-                        <div className="status-dot"></div>
-                        Testnet Bradbury Connected
+                        <div className="status-dot" />
+                        Testnet Bradbury
                     </div>
+                    {/* Wallet display — sourced from embedded wallet context */}
                     <button
-                        className={`btn ${walletAddress ? 'btn-primary' : ''}`}
-                        onClick={handleConnectWallet}
+                        className="btn btn-primary"
+                        onClick={handleDisconnect}
                         onMouseEnter={() => setIsWalletHovered(true)}
                         onMouseLeave={() => setIsWalletHovered(false)}
+                        title={walletAddress}
                     >
-                        {walletAddress
-                            ? (isWalletHovered ? '🔌 Disconnect Wallet' : `🔌 ${walletAddress.substring(0, 6)}...${walletAddress.substring(38)}`)
-                            : '💳 Connect Wallet'}
+                        {isWalletHovered ? '🔌 Disconnect' : `🔐 ${shortAddr}`}
                     </button>
                 </div>
             </header>
@@ -115,4 +88,45 @@ function App() {
     );
 }
 
-export default App;
+// ── Root with auth gate ───────────────────────────────────────────────────────
+function AppRoot() {
+    const { user, step } = useWallet();
+    const [toasts, setToasts] = useState([]);
+
+    const addToast = (message, type = 'info', duration = 5000) => {
+        const id = Date.now();
+        setToasts(prev => [...prev, { id, type, message }]);
+        setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), duration);
+    };
+
+    const isAuthenticated = user?.walletAddress && step === 'done';
+
+    return (
+        <>
+            {/* Toast overlay — always mounted */}
+            <div className="toast-container">
+                {toasts.map(t => (
+                    <div key={t.id} className={`toast toast-${t.type}`}>
+                        {t.type === 'success' && '✅ '}
+                        {t.type === 'error' && '❌ '}
+                        {t.type === 'info' && 'ℹ️ '}
+                        {t.message}
+                    </div>
+                ))}
+            </div>
+
+            {isAuthenticated
+                ? <AuthenticatedApp addToast={addToast} />
+                : <AuthModal addToast={addToast} />
+            }
+        </>
+    );
+}
+
+export default function App() {
+    return (
+        <WalletProvider>
+            <AppRoot />
+        </WalletProvider>
+    );
+}
