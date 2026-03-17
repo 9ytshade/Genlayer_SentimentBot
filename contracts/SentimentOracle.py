@@ -6,7 +6,7 @@ import json
 # ─── Storage-compatible struct stored as JSON string ───────────────────────────
 # SentimentScore: {score: int(-100..100), label: str, confidence: int(0..100), source: str, block_number: int}
 
-SUPPORTED_ASSETS_DEFAULT = ["BTC", "ETH", "SOL", "BNB"]
+SUPPORTED_ASSETS_DEFAULT = ["BTC", "ETH", "SOL", "BNB", "ADA", "XRP", "DOT", "DOGE"]
 WHITELISTED_DOMAINS_DEFAULT = ["cryptopanic.com", "reddit.com", "coingecko.com", "coindesk.com"]
 
 SOURCE_URLS = {
@@ -27,6 +27,25 @@ SOURCE_URLS = {
     "BNB": [
         "https://cryptopanic.com/news/bnb/",
         "https://www.reddit.com/r/bnbchainofficial/.json?limit=10&sort=hot",
+    ],
+    "ADA": [
+        "https://cryptopanic.com/news/cardano/",
+        "https://www.reddit.com/r/cardano/.json?limit=10&sort=hot",
+        "https://coindesk.com/tag/cardano/",
+    ],
+    "XRP": [
+        "https://cryptopanic.com/news/xrp/",
+        "https://www.reddit.com/r/XRP/.json?limit=10&sort=hot",
+        "https://coindesk.com/tag/xrp/",
+    ],
+    "DOT": [
+        "https://cryptopanic.com/news/polkadot/",
+        "https://www.reddit.com/r/dot/.json?limit=10&sort=hot",
+    ],
+    "DOGE": [
+        "https://cryptopanic.com/news/dogecoin/",
+        "https://www.reddit.com/r/dogecoin/.json?limit=10&sort=hot",
+        "https://coindesk.com/tag/dogecoin/",
     ],
 }
 
@@ -99,7 +118,7 @@ class SentimentOracle(gl.Contract):
         if not collected_text:
             collected_text = f"No data could be fetched for {symbol} at this time."
 
-        # Step 1 – get numeric score
+        # Step 1 – Numeric score (via prompt_comparative: validators agree within tolerance)
         score_prompt = f"""You are a crypto market sentiment analyst.
 Based on the following recent news, articles, and social media content aggregated from multiple sources about {symbol}, 
 synthesize a single sentiment score from -100 (extremely bearish) to +100 (extremely bullish).
@@ -115,23 +134,36 @@ Rules:
 
         raw_score = gl.nondet.exec_prompt(score_prompt).strip()
 
-        # Step 2 – get label
-        label_prompt = f"""Based on this sentiment score of {raw_score} for {symbol} cryptocurrency,
+        # Step 2 – Sentiment label (via prompt_non_comparative: validators agree on direction)
+        def label_task() -> str:
+            lp = f"""Based on a sentiment score of {raw_score} for {symbol} cryptocurrency,
 classify the market sentiment as exactly one word: bullish, bearish, or neutral.
-
 Respond with only one word."""
+            return gl.nondet.exec_prompt(lp).strip().lower()
 
-        raw_label = gl.nondet.exec_prompt(label_prompt).strip().lower()
+        raw_label = gl.eq_principle.prompt_non_comparative(
+            label_task,
+            task=f"Classify sentiment direction for {symbol}",
+            criteria="Must return exactly one of: bullish, bearish, neutral. "
+                     "Validators must agree on the same directional classification.",
+        )
 
-        # Step 3 – confidence
-        confidence_prompt = f"""You are a sentiment analyst. How confident are you in the following assessment?
+        # Step 3 – Confidence level (via prompt_non_comparative: validators agree on certainty)
+        def confidence_task() -> str:
+            cp = f"""You are a sentiment analyst. How confident are you in the following assessment?
 Asset: {symbol}
 Score: {raw_score}
 Label: {raw_label}
 
 Rate your confidence from 0 to 100 (integer only, no text)."""
+            return gl.nondet.exec_prompt(cp).strip()
 
-        raw_confidence = gl.nondet.exec_prompt(confidence_prompt).strip()
+        raw_confidence = gl.eq_principle.prompt_non_comparative(
+            confidence_task,
+            task=f"Assess confidence level for {symbol} sentiment",
+            criteria="Must return an integer between 0 and 100. "
+                     "Validators should agree within 20 points.",
+        )
 
         result = json.dumps({
             "score": raw_score,

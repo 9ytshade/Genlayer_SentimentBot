@@ -83,7 +83,7 @@ function App() {
                 <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                     <div className="status-badge">
                         <div className="status-dot"></div>
-                        Testnet Asimov Connected
+                        Testnet Bradbury Connected
                     </div>
                     <button
                         className={`btn ${walletAddress ? 'btn-primary' : ''}`}
