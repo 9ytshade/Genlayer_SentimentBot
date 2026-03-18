@@ -52,9 +52,10 @@ export default function AuthModal({ addToast }) {
     };
 
     // ── Step 2: Verify OTP ──────────────────────────────────────────────────
-    const handleOtpSubmit = async (e) => {
-        e?.preventDefault();
-        const code = otp.join('');
+    // codeOverride: pass the code directly from auto-submit to avoid stale-closure
+    const handleOtpSubmit = async (e, codeOverride) => {
+        e?.preventDefault?.();
+        const code = codeOverride ?? otp.join('');
         if (code.length !== 6) { setError('Please enter all 6 digits.'); return; }
         setError('');
         setLoading(true);
@@ -85,8 +86,9 @@ export default function AuthModal({ addToast }) {
         setOtp(next);
         if (value && index < 5) otpRefs.current[index + 1]?.focus();
         if (next.every(d => d !== '') && index === 5) {
-            // Auto-submit when all 6 digits filled
-            setTimeout(() => handleOtpSubmit(), 50);
+            // Pass code directly — avoids stale closure on state read
+            const code = next.join('');
+            setTimeout(() => handleOtpSubmit(null, code), 50);
         }
     };
 
@@ -101,12 +103,12 @@ export default function AuthModal({ addToast }) {
         e.preventDefault();
         const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
         if (!pasted) return;
-        const next = [...otp];
+        const next = ['', '', '', '', '', ''];
         pasted.split('').forEach((d, i) => { next[i] = d; });
         setOtp(next);
-        const lastFilled = Math.min(pasted.length, 5);
+        const lastFilled = Math.min(pasted.length - 1, 5);
         otpRefs.current[lastFilled]?.focus();
-        if (pasted.length === 6) setTimeout(() => handleOtpSubmit(), 80);
+        if (pasted.length === 6) setTimeout(() => handleOtpSubmit(null, pasted), 80);
     };
 
     return (

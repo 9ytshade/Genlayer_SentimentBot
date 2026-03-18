@@ -1,191 +1,262 @@
 import React, { useState } from 'react';
 
-export default function Settings({
-    walletAddress,
-    userProfile,
-    setRiskProfile,
-    customSources,
-    setCustomSources,
-    addToast
-}) {
+// ── Reusable tag filter panel ─────────────────────────────────────────────────
+function FilterPanel({ title, placeholder, prefix, whitelist, blacklist, onAdd, onRemove }) {
+    const [input, setInput] = useState('');
+
+    const handleAdd = (type) => {
+        const val = input.trim();
+        if (!val) return;
+        if (prefix && !val.startsWith(prefix)) {
+            onAdd(null, null, `Entry must start with "${prefix}"`);
+            return;
+        }
+        onAdd(val, type);
+        setInput('');
+    };
+
+    return (
+        <div className="card">
+            <h2 className="card-title">{title}</h2>
+
+            <div className="input-group" style={{ marginBottom: '1.25rem', flexWrap: 'nowrap' }}>
+                <input
+                    type="text"
+                    className="input-field"
+                    placeholder={placeholder}
+                    value={input}
+                    onChange={e => setInput(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleAdd('whitelist')}
+                />
+                <button
+                    className="btn"
+                    style={{ background: 'rgba(16,185,129,0.15)', color: 'var(--success)', borderColor: 'rgba(16,185,129,0.3)', whiteSpace: 'nowrap' }}
+                    onClick={() => handleAdd('whitelist')}
+                >
+                    + Whitelist
+                </button>
+                <button
+                    className="btn"
+                    style={{ background: 'rgba(239,68,68,0.1)', color: 'var(--danger)', borderColor: 'rgba(239,68,68,0.3)', whiteSpace: 'nowrap' }}
+                    onClick={() => handleAdd('blacklist')}
+                >
+                    + Blacklist
+                </button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <TagColumn
+                    label="Whitelisted"
+                    color="var(--success)"
+                    bg="rgba(0,255,136,0.08)"
+                    items={whitelist}
+                    onRemove={val => onRemove(val, 'whitelist')}
+                />
+                <TagColumn
+                    label="Blacklisted"
+                    color="var(--danger)"
+                    bg="rgba(239,68,68,0.08)"
+                    items={blacklist}
+                    onRemove={val => onRemove(val, 'blacklist')}
+                />
+            </div>
+        </div>
+    );
+}
+
+function TagColumn({ label, color, bg, items, onRemove }) {
+    return (
+        <div>
+            <h3 style={{ color, fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.6rem' }}>
+                {label} ({items.length})
+            </h3>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', minHeight: '36px' }}>
+                {items.length === 0 && <span className="meta-text" style={{ fontSize: '0.8rem' }}>None added</span>}
+                {items.map(val => (
+                    <span key={val} style={{
+                        background: bg, color, border: `1px solid ${color}33`,
+                        padding: '0.3rem 0.6rem', borderRadius: '6px',
+                        fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '0.4rem'
+                    }}>
+                        {val}
+                        <span
+                            style={{ cursor: 'pointer', opacity: 0.7, fontWeight: 700, lineHeight: 1 }}
+                            onClick={() => onRemove(val)}
+                        >×</span>
+                    </span>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+// ── Main Settings Component ───────────────────────────────────────────────────
+export default function Settings({ walletAddress, userProfile, setRiskProfile, customSources, setCustomSources, addToast }) {
+
     const CURATED_SOURCES = [
-        { id: 'cdesk', name: 'CoinDesk Pro', url: 'coindesk.com', trust: 'High' },
-        { id: 'cpanic', name: 'CryptoPanic Aggr.', url: 'cryptopanic.com', trust: 'High' },
-        { id: 'reddit', name: 'Reddit /r/CryptoCurrency', url: 'reddit.com/r/CryptoCurrency', trust: 'Medium' },
-        { id: 'bloom', name: 'Bloomberg Terminal (Mock)', url: 'bloomberg.com/crypto', trust: 'High' },
-        { id: 'x', name: 'X / Twitter Influencers', url: 'twitter.com', trust: 'Low' }
+        { id: 'cdesk', name: 'CoinDesk', url: 'coindesk.com', trust: 'High' },
+        { id: 'cpanic', name: 'CryptoPanic', url: 'cryptopanic.com', trust: 'High' },
+        { id: 'cgecko', name: 'CoinGecko News', url: 'coingecko.com', trust: 'High' },
+        { id: 'bloom', name: 'Bloomberg Crypto', url: 'bloomberg.com/crypto', trust: 'High' },
+        { id: 'reddit', name: 'Reddit r/CryptoCurrency', url: 'reddit.com/r/CryptoCurrency', trust: 'Medium' },
+        { id: 'x', name: 'X / Twitter', url: 'twitter.com', trust: 'Low' },
     ];
 
     const [activeSources, setActiveSources] = useState(['cdesk', 'cpanic', 'bloom']);
 
-    const [influencerInput, setInfluencerInput] = useState('');
-    const [whitelistedInfluencers, setWhitelistedInfluencers] = useState(['@elonmusk', '@saylor']);
-    const [blacklistedInfluencers, setBlacklistedInfluencers] = useState(['@bitboy_crypto']);
+    // ── X/Twitter influencer state ──
+    const [xWhitelist, setXWhitelist] = useState(['@elonmusk', '@saylor']);
+    const [xBlacklist, setXBlacklist] = useState(['@bitboy_crypto']);
 
-    const addInfluencer = (type) => {
-        if (!influencerInput.trim() || !influencerInput.startsWith('@')) {
-            addToast('error', 'Influencer handle must start with @');
-            return;
-        }
-        if (type === 'whitelist') {
-            setWhitelistedInfluencers(prev => [...new Set([...prev, influencerInput])]);
-            addToast('success', `${influencerInput} added to whitelist.`);
-        } else {
-            setBlacklistedInfluencers(prev => [...new Set([...prev, influencerInput])]);
-            addToast('success', `${influencerInput} added to blacklist.`);
-        }
-        setInfluencerInput('');
-    };
+    // ── Reddit subreddit state ──
+    const [redditWhitelist, setRedditWhitelist] = useState(['r/Bitcoin', 'r/ethereum', 'r/CryptoCurrency']);
+    const [redditBlacklist, setRedditBlacklist] = useState(['r/SatoshiStreetBets']);
 
-    const removeInfluencer = (handle, type) => {
-        if (type === 'whitelist') setWhitelistedInfluencers(prev => prev.filter(h => h !== handle));
-        else setBlacklistedInfluencers(prev => prev.filter(h => h !== handle));
-    };
+    // ── Website source state ──
+    const [siteWhitelist, setSiteWhitelist] = useState(['coindesk.com', 'cryptopanic.com']);
+    const [siteBlacklist, setSiteBlacklist] = useState(['fakebitcoinnews.xyz']);
 
-    const toggleSource = (sourceId) => {
-        let newActive;
-        if (activeSources.includes(sourceId)) {
-            newActive = activeSources.filter(id => id !== sourceId);
-        } else {
-            newActive = [...activeSources, sourceId];
-        }
-        setActiveSources(newActive);
+    // ── Generic add/remove for each section ──
+    const makeHandlers = (setWl, setBlBl, section) => ({
+        onAdd: (val, type, err) => {
+            if (err) { addToast(err, 'error'); return; }
+            if (type === 'whitelist') {
+                setWl(prev => [...new Set([...prev, val])]);
+                addToast(`${val} whitelisted for ${section}.`, 'success');
+            } else {
+                setBlBl(prev => [...new Set([...prev, val])]);
+                addToast(`${val} blacklisted from ${section}.`, 'success');
+            }
+        },
+        onRemove: (val, type) => {
+            if (type === 'whitelist') setWl(prev => prev.filter(x => x !== val));
+            else setBlBl(prev => prev.filter(x => x !== val));
+        },
+    });
 
-        // Mocking the structure expected by the backend
-        const mappedUrls = newActive.map(id => CURATED_SOURCES.find(s => s.id === id).url);
-        setCustomSources({ "GLOBAL": mappedUrls });
-    };
+    const xHandlers = makeHandlers(setXWhitelist, setXBlacklist, 'X/Twitter');
+    const redditHandlers = makeHandlers(setRedditWhitelist, setRedditBlacklist, 'Reddit');
+    const siteHandlers = makeHandlers(setSiteWhitelist, setSiteBlacklist, 'Web Sources');
 
-    const handleSaveSources = () => {
-        addToast('success', 'Source Trustlist saved to GenLayer Smart Contract.');
+    const toggleSource = (id) => {
+        const next = activeSources.includes(id)
+            ? activeSources.filter(x => x !== id)
+            : [...activeSources, id];
+        setActiveSources(next);
+        const mapped = next.map(sid => CURATED_SOURCES.find(s => s.id === sid)?.url).filter(Boolean);
+        setCustomSources({ GLOBAL: mapped });
     };
 
     const handleProfileChange = (id) => {
         setRiskProfile(id);
-        const profiles = { 1: 'Conservative', 2: 'Balanced', 3: 'Aggressive' };
-        addToast('success', `Risk profile changed to ${profiles[id]}`);
+        const names = { 1: 'Conservative', 2: 'Balanced', 3: 'Aggressive' };
+        addToast(`Risk profile set to ${names[id]}.`, 'success');
     };
 
-    if (!walletAddress) {
-        return (
-            <div className="card" style={{ textAlign: 'center', padding: '4rem 2rem' }}>
-                <h2 className="card-title" style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>Wallet Connection Required</h2>
-                <p className="meta-text">Please connect your GenLayer wallet to configure your personal bot settings.</p>
-            </div>
-        );
-    }
+    const handleSave = () => addToast('Settings committed to GenLayer Smart Contract.', 'success');
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
 
+            {/* ── Risk Profile ─────────────────────────────────────────── */}
             <div className="card">
-                <h2 className="card-title">Bot Risk Management Profile</h2>
+                <h2 className="card-title">Bot Risk Profile</h2>
                 <p className="meta-text" style={{ marginBottom: '1.5rem' }}>
-                    Select the AI trading personality that best fits your risk appetite. This alters the threshold for triggering rebalances and maximum asset allocations.
+                    Select the AI trading personality. Controls rebalance thresholds and max allocation per asset.
                 </p>
-
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
-
-                    <div
-                        className={`profile-card ${userProfile === 1 ? 'profile-active' : ''}`}
-                        onClick={() => handleProfileChange(1)}
-                    >
-                        <h3>🛡️ Conservative</h3>
-                        <p className="meta-text">High conviction required. Max 40% per asset.</p>
-                    </div>
-
-                    <div
-                        className={`profile-card ${userProfile === 2 ? 'profile-active' : ''}`}
-                        onClick={() => handleProfileChange(2)}
-                    >
-                        <h3>⚖️ Balanced</h3>
-                        <p className="meta-text">Standard AI scoring bounds. Max 60% per asset.</p>
-                    </div>
-
-                    <div
-                        className={`profile-card ${userProfile === 3 ? 'profile-active' : ''}`}
-                        onClick={() => handleProfileChange(3)}
-                    >
-                        <h3>🚀 Aggressive</h3>
-                        <p className="meta-text">Reacts to slight momentum shifts. Max 90% per asset.</p>
-                    </div>
-
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+                    {[
+                        { id: 1, icon: '🛡️', label: 'Conservative', desc: 'High conviction required. Max 40% per asset.' },
+                        { id: 2, icon: '⚖️', label: 'Balanced', desc: 'Standard AI scoring bounds. Max 60% per asset.' },
+                        { id: 3, icon: '🚀', label: 'Aggressive', desc: 'Reacts to slight momentum shifts. Max 90% per asset.' },
+                    ].map(p => (
+                        <div
+                            key={p.id}
+                            className={`profile-card ${userProfile === p.id ? 'profile-active' : ''}`}
+                            onClick={() => handleProfileChange(p.id)}
+                        >
+                            <h3>{p.icon} {p.label}</h3>
+                            <p className="meta-text">{p.desc}</p>
+                        </div>
+                    ))}
                 </div>
             </div>
 
+            {/* ── Curated Oracle Trustlist ──────────────────────────────── */}
             <div className="card">
-                <h2 className="card-title">Curated Oracle Sources (Trustlist)</h2>
+                <h2 className="card-title">Oracle Source Trustlist</h2>
                 <p className="meta-text" style={{ marginBottom: '1.5rem' }}>
-                    Select which data sources the LLM Oracle will aggregate and synthesize into its final sentiment score.
+                    Choose which data sources the LLM Oracle aggregates for its final sentiment score.
                 </p>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    {CURATED_SOURCES.map((src) => (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                    {CURATED_SOURCES.map(src => (
                         <div key={src.id} style={{
                             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                            padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '8px',
-                            border: activeSources.includes(src.id) ? '1px solid var(--primary)' : '1px solid transparent'
+                            padding: '0.9rem 1rem', background: 'rgba(255,255,255,0.03)',
+                            borderRadius: '10px',
+                            border: activeSources.includes(src.id) ? '1px solid rgba(0,255,136,0.3)' : '1px solid transparent',
+                            transition: 'border-color 0.2s',
                         }}>
                             <div>
-                                <div style={{ fontWeight: 'bold' }}>{src.name}</div>
-                                <div className="meta-text" style={{ fontSize: '0.8rem', marginTop: '0.2rem' }}>{src.url}</div>
+                                <div style={{ fontWeight: 600 }}>{src.name}</div>
+                                <div className="meta-text" style={{ fontSize: '0.78rem' }}>{src.url}</div>
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                <span className={`score-badge ${src.trust === 'High' ? 'score-positive' : src.trust === 'Medium' ? 'score-neutral' : 'score-negative'}`} style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}>
-                                    Trust: {src.trust}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                <span className={`score-badge ${src.trust === 'High' ? 'score-positive' :
+                                        src.trust === 'Medium' ? 'score-neutral' : 'score-negative'
+                                    }`} style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem' }}>
+                                    {src.trust}
                                 </span>
-                                <button className={`btn ${activeSources.includes(src.id) ? 'btn-danger' : 'btn-primary'}`} onClick={() => toggleSource(src.id)}>
-                                    {activeSources.includes(src.id) ? 'Remove' : 'Add Source'}
+                                <button
+                                    className={`btn ${activeSources.includes(src.id) ? '' : 'btn-primary'}`}
+                                    style={{ padding: '0.4rem 0.9rem', fontSize: '0.85rem' }}
+                                    onClick={() => toggleSource(src.id)}
+                                >
+                                    {activeSources.includes(src.id) ? 'Remove' : 'Add'}
                                 </button>
                             </div>
                         </div>
                     ))}
                 </div>
-
-                <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'flex-end' }}>
-                    <button className="btn btn-primary" onClick={handleSaveSources} style={{ padding: '0.75rem 2rem' }}>
-                        Commit Whitelist On-chain
+                <div style={{ marginTop: '1.25rem', display: 'flex', justifyContent: 'flex-end' }}>
+                    <button className="btn btn-primary" onClick={handleSave} style={{ padding: '0.7rem 2rem' }}>
+                        Commit On-chain ↗
                     </button>
                 </div>
             </div>
 
-            <div className="card">
-                <h2 className="card-title">X / Twitter Influencer Filters</h2>
-                <p className="meta-text" style={{ marginBottom: '1.5rem' }}>
-                    Whitelist trusted usernames to boost their sentiment weight, or blacklist noisy accounts to ignore them completely during text aggregation.
-                </p>
+            {/* ── X / Twitter Influencer Filters ────────────────────────── */}
+            <FilterPanel
+                title="𝕏 / Twitter Influencer Filters"
+                placeholder="@username"
+                prefix="@"
+                whitelist={xWhitelist}
+                blacklist={xBlacklist}
+                onAdd={xHandlers.onAdd}
+                onRemove={xHandlers.onRemove}
+            />
 
-                <div className="input-group" style={{ marginBottom: '1.5rem', flexWrap: 'nowrap' }}>
-                    <input type="text" className="input-field" placeholder="@username" value={influencerInput} onChange={e => setInfluencerInput(e.target.value)} />
-                    <button className="btn" style={{ background: 'var(--success)', color: '#000' }} onClick={() => addInfluencer('whitelist')}>Whitelist</button>
-                    <button className="btn" style={{ background: 'var(--danger)', color: '#fff' }} onClick={() => addInfluencer('blacklist')}>Blacklist</button>
-                </div>
+            {/* ── Reddit Subreddit Filters ───────────────────────────────── */}
+            <FilterPanel
+                title="Reddit Subreddit Filters"
+                placeholder="r/subreddit"
+                prefix="r/"
+                whitelist={redditWhitelist}
+                blacklist={redditBlacklist}
+                onAdd={redditHandlers.onAdd}
+                onRemove={redditHandlers.onRemove}
+            />
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(200px, 1fr) minmax(200px, 1fr)', gap: '1rem' }}>
-                    <div>
-                        <h3 className="meta-text" style={{ color: 'var(--success)', marginBottom: '0.5rem' }}>Whitelisted</h3>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                            {whitelistedInfluencers.length === 0 && <span className="meta-text">None</span>}
-                            {whitelistedInfluencers.map(handle => (
-                                <span key={handle} style={{ background: 'rgba(0,255,136,0.1)', color: 'var(--success)', padding: '0.4rem 0.6rem', borderRadius: '4px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    {handle} <span style={{ cursor: 'pointer', fontWeight: 'bold' }} onClick={() => removeInfluencer(handle, 'whitelist')}>×</span>
-                                </span>
-                            ))}
-                        </div>
-                    </div>
-                    <div>
-                        <h3 className="meta-text" style={{ color: 'var(--danger)', marginBottom: '0.5rem' }}>Blacklisted</h3>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                            {blacklistedInfluencers.length === 0 && <span className="meta-text">None</span>}
-                            {blacklistedInfluencers.map(handle => (
-                                <span key={handle} style={{ background: 'rgba(255,61,0,0.1)', color: 'var(--danger)', padding: '0.4rem 0.6rem', borderRadius: '4px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    {handle} <span style={{ cursor: 'pointer', fontWeight: 'bold' }} onClick={() => removeInfluencer(handle, 'blacklist')}>×</span>
-                                </span>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            </div>
+            {/* ── Website Source Filters ─────────────────────────────────── */}
+            <FilterPanel
+                title="Website Source Filters"
+                placeholder="example.com"
+                prefix={null}
+                whitelist={siteWhitelist}
+                blacklist={siteBlacklist}
+                onAdd={siteHandlers.onAdd}
+                onRemove={siteHandlers.onRemove}
+            />
 
         </div>
     );
