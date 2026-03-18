@@ -83,6 +83,8 @@ export default function Portfolio({
         }],
     };
 
+    const totalValue = portfolio.fiatBalance + portfolio.cryptoValue;
+
     const chartOptions = {
         maintainAspectRatio: false,
         plugins: {
@@ -90,6 +92,24 @@ export default function Portfolio({
                 display: true,
                 position: 'top',
                 labels: { color: '#94a3b8', boxWidth: 12, font: { size: 11 } },
+            },
+            tooltip: {
+                callbacks: {
+                    label: (ctx) => {
+                        const pct = ctx.parsed;
+                        const dollarVal = ((totalValue * pct) / 100).toLocaleString(
+                            undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+                        );
+                        return `  ${ctx.label}: ${pct}%  ($${dollarVal})`;
+                    },
+                },
+                backgroundColor: 'rgba(13,15,20,0.95)',
+                borderColor: 'rgba(0,255,136,0.3)',
+                borderWidth: 1,
+                titleColor: '#ffffff',
+                bodyColor: '#00ff88',
+                padding: 10,
+                cornerRadius: 8,
             },
         },
     };
@@ -182,7 +202,7 @@ export default function Portfolio({
                                 <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{sym}</div>
                                 <div style={{ color: 'var(--primary)', fontWeight: 600 }}>{w}%</div>
                                 <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
-                                    ${((portfolio.cryptoValue * w) / 100).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                    ${((totalValue * w) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </div>
                             </div>
                         ))}
