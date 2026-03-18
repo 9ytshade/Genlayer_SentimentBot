@@ -25,9 +25,9 @@ function AuthenticatedApp({ addToast }) {
         change24h: (Math.random() * 10 - 5).toFixed(2),
     })));
 
-    // Portfolio starts at 0 — user funds it via the deposit section
+    // Portfolio starts at $1000 test credit — user can trigger rebalance immediately
     const [portfolio, setPortfolio] = useState({
-        fiatBalance: 0,
+        fiatBalance: 1000,
         cryptoValue: 0,
         weights: { BTC: 12, ETH: 12, SOL: 12, BNB: 12, ADA: 13, XRP: 13, DOT: 13, DOGE: 13 },
     });

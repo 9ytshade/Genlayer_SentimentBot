@@ -97,6 +97,41 @@ export default function Portfolio({
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
 
+            {/* ── Portfolio Value Summary ─────────────────────────────── */}
+            <div className="card" style={{
+                background: 'linear-gradient(135deg, rgba(0,255,136,0.06), rgba(0,184,255,0.06))',
+                border: '1px solid rgba(0,255,136,0.2)',
+            }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem' }}>
+                    <div>
+                        <p className="meta-text" style={{ marginBottom: '0.35rem', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                            Total Portfolio Value
+                        </p>
+                        <div style={{
+                            fontSize: '2.6rem', fontWeight: 800, lineHeight: 1.1,
+                            background: 'linear-gradient(90deg, var(--primary), var(--secondary))',
+                            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+                        }}>
+                            ${(portfolio.fiatBalance + portfolio.cryptoValue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '2rem' }}>
+                        <div style={{ textAlign: 'right' }}>
+                            <p className="meta-text" style={{ marginBottom: '0.25rem', fontSize: '0.78rem' }}>💵 Fiat Balance</p>
+                            <div style={{ fontSize: '1.35rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                ${portfolio.fiatBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                            <p className="meta-text" style={{ marginBottom: '0.25rem', fontSize: '0.78rem' }}>📈 Crypto TVL</p>
+                            <div style={{ fontSize: '1.35rem', fontWeight: 700, color: 'var(--primary)' }}>
+                                ${portfolio.cryptoValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             {/* ── Token Whitelist ─────────────────────────────────────── */}
             <div className="card">
                 <h2 className="card-title">Token Whitelist</h2>
