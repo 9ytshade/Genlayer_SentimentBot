@@ -104,7 +104,11 @@ class SentimentOracle(gl.Contract):
 
         for url in urls[:5]: # Cap at 5 URLs to avoid context window explosion
             try:
-                page = gl.nondet.web.render(url, mode="text")
+                resp = gl.nondet.web.get(url)
+                if resp.status == 200 and resp.body:
+                    page = resp.body.decode('utf-8', errors='replace')
+                else:
+                    page = ""
                 if page and len(page) > 100:
                     # truncate individual pages to keep total prompt size manageable
                     collected_text += f"\n\n=== Source: {url} ===\n{page[:1000]}"
@@ -189,11 +193,9 @@ Rate your confidence from 0 to 100 (integer only, no text)."""
         # Comparative consensus: validators run independently, agree if within tolerance
         result_json = gl.eq_principle.prompt_comparative(
             task,
-            task=f"Fetch and score crypto sentiment for {symbol}",
-            criteria=f"Both outputs must reflect a similar market sentiment direction for {symbol}. "
-                     f"The numeric score may differ by up to 15 points. "
-                     f"The label (bullish/bearish/neutral) should match in most cases.",
-            tolerance=0.15,
+            principle=f"Both outputs must reflect a similar market sentiment direction for {symbol}. "
+                      f"The numeric score may differ by up to 15 points. "
+                      f"The label (bullish/bearish/neutral) should match in most cases.",
         )
 
         # Parse and validate

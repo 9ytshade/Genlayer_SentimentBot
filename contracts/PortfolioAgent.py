@@ -301,10 +301,9 @@ No other text."""
 
         new_weights_json = gl.eq_principle.prompt_comparative(
             weights_task,
-            task=f"Compute portfolio allocation weights for {profile_name} profile",
-            criteria="Validators must agree on asset allocations within 10 percentage points per asset. "
-                     "The same assets must be included. Total must sum to 100.",
-            tolerance=0.10,
+            principle=f"Compute portfolio allocation weights for {profile_name} profile. "
+                      f"Validators must agree on asset allocations within 10 percentage points per asset. "
+                      f"The same assets must be included and weights must sum to 100.",
         )
 
         # Validate and normalise the result
