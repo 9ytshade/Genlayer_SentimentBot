@@ -1,4 +1,4 @@
-# { "Depends": "py-genlayer:test" }
+# { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
 from genlayer import *
 from genlayer.gl.vm import UserError
 import json
@@ -26,14 +26,14 @@ class SentimentLeaderboard(gl.Contract):
     total_snapshots: u256
 
     def __init__(self, oracle_address: Address) -> None:
-        self.owner = gl.message.sender_account
+        self.owner = gl.message.sender_address
         self.oracle_address = oracle_address
         self.total_snapshots = u256(0)
 
     # ── Internal helpers ───────────────────────────────────────────────────────
 
     def _require_oracle_or_owner(self) -> None:
-        sender = gl.message.sender_account
+        sender = gl.message.sender_address
         if sender != self.oracle_address and sender != self.owner:
             raise UserError("Only oracle or owner can call this")
 
@@ -81,7 +81,7 @@ class SentimentLeaderboard(gl.Contract):
 
     @gl.public.write
     def set_oracle_address(self, address: Address) -> None:
-        if gl.message.sender_account != self.owner:
+        if gl.message.sender_address != self.owner:
             raise UserError("Only owner can call this")
         self.oracle_address = address
 

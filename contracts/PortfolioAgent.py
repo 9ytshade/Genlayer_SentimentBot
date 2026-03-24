@@ -1,4 +1,4 @@
-# { "Depends": "py-genlayer:test" }
+# { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
 from genlayer import *
 from genlayer.gl.vm import UserError
 import json
@@ -39,7 +39,7 @@ class PortfolioAgent(gl.Contract):
     asset_actions: TreeMap[str, str]  # symbol -> JSON {action, score, label, block, caller}
 
     def __init__(self, oracle_address: Address, leaderboard_address: Address) -> None:
-        self.owner = gl.message.sender_account
+        self.owner = gl.message.sender_address
         self.oracle_address = oracle_address
         self.leaderboard_address = leaderboard_address
         self.total_deposited = u256(0)
@@ -49,7 +49,7 @@ class PortfolioAgent(gl.Contract):
     # ── Internal helpers ───────────────────────────────────────────────────────
 
     def _require_owner(self) -> None:
-        if gl.message.sender_account != self.owner:
+        if gl.message.sender_address != self.owner:
             raise UserError("Only owner can call this")
 
     def _get_oracle_sentiments(self) -> str:
@@ -129,7 +129,7 @@ class PortfolioAgent(gl.Contract):
         """Deposit `amount` into the portfolio agent."""
         if amount == u256(0):
             raise UserError("Amount must be > 0")
-        sender = gl.message.sender_account
+        sender = gl.message.sender_address
         current = self.balances.get(sender, u256(0))
         self.balances[sender] = current + amount
         self.total_deposited = self.total_deposited + amount
@@ -137,7 +137,7 @@ class PortfolioAgent(gl.Contract):
     @gl.public.write
     def withdraw(self, amount: u256) -> None:
         """Withdraw `amount` from the portfolio agent."""
-        sender = gl.message.sender_account
+        sender = gl.message.sender_address
         current = self.balances.get(sender, u256(0))
         if amount > current:
             raise UserError("Insufficient balance")
@@ -162,10 +162,10 @@ class PortfolioAgent(gl.Contract):
         score = int(sentiment.get("score", 0))
         label = sentiment.get("label", "neutral")
         confidence = int(sentiment.get("confidence", 50))
-        caller_str = str(gl.message.sender_account)
+        caller_str = str(gl.message.sender_address)
 
         # Get user risk profile to influence the decision
-        profile_id = self.user_risk_profiles.get(gl.message.sender_account, 2)
+        profile_id = self.user_risk_profiles.get(gl.message.sender_address, 2)
         profile_names = {1: "Conservative", 2: "Balanced", 3: "Aggressive"}
         profile_name = profile_names.get(profile_id, "Balanced")
 
@@ -232,7 +232,7 @@ Do not include any other text."""
         # Also append to trade history
         self._record_trade(
             caller=caller_str,
-            old_weights=self.portfolio_weights.get(gl.message.sender_account, "{}"),
+            old_weights=self.portfolio_weights.get(gl.message.sender_address, "{}"),
             new_weights="pending_rebalance",
             reason=f"Consensus Decision: {action} {symbol} — {rationale}",
         )
@@ -260,11 +260,11 @@ Do not include any other text."""
         Read oracle sentiment, run validator consensus on weight computation,
         store agreed weights on-chain, and return the new weights as JSON.
         """
-        sender = str(gl.message.sender_account)
+        sender = str(gl.message.sender_address)
 
         # Fetch sentiment from oracle
         sentiments_json = self._get_oracle_sentiments()
-        profile_id = self.user_risk_profiles.get(gl.message.sender_account, 2)
+        profile_id = self.user_risk_profiles.get(gl.message.sender_address, 2)
         profile_names = {1: "Conservative", 2: "Balanced", 3: "Aggressive"}
         profile_name = profile_names.get(profile_id, "Balanced")
 
@@ -322,11 +322,11 @@ No other text."""
             new_weights_json = json.dumps(weights)
 
         old_weights_json = self.portfolio_weights.get(
-            gl.message.sender_account,
+            gl.message.sender_address,
             json.dumps({a: round(100 / len(ALL_ASSETS)) for a in ALL_ASSETS})
         )
 
-        self.portfolio_weights[gl.message.sender_account] = new_weights_json
+        self.portfolio_weights[gl.message.sender_address] = new_weights_json
 
         bot_names = {1: "Conservative", 2: "Balanced", 3: "Aggressive"}
         reason = f"{bot_names.get(profile_id, 'Balanced')} Bot consensus rebalance"
@@ -344,7 +344,7 @@ No other text."""
         """Set user risk profile: 1=Conservative, 2=Balanced, 3=Aggressive."""
         if profile_id not in [1, 2, 3]:
             raise UserError("Profile ID must be 1, 2, or 3")
-        self.user_risk_profiles[gl.message.sender_account] = profile_id
+        self.user_risk_profiles[gl.message.sender_address] = profile_id
 
     @gl.public.write
     def set_oracle_address(self, address: Address) -> None:
