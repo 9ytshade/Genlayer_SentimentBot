@@ -65,7 +65,7 @@ class SentimentOracle(gl.Contract):
     owner: Address
 
     def __init__(self) -> None:
-        self.owner = gl.message.sender_account
+        self.owner = gl.message.sender_address
         for asset in SUPPORTED_ASSETS_DEFAULT:
             self.supported_assets.append(asset)
         for domain in WHITELISTED_DOMAINS_DEFAULT:
@@ -74,7 +74,7 @@ class SentimentOracle(gl.Contract):
     # ── Internal helpers ───────────────────────────────────────────────────────
 
     def _require_owner(self) -> None:
-        if gl.message.sender_account != self.owner:
+        if gl.message.sender_address != self.owner:
             raise UserError("Only owner can call this method")
 
     def _is_supported(self, symbol: str) -> bool:
@@ -185,7 +185,7 @@ Rate your confidence from 0 to 100 (integer only, no text)."""
         if not self._is_supported(symbol):
             raise UserError(f"Asset {symbol} is not supported")
 
-        caller_str = str(gl.message.sender_account)
+        caller_str = str(gl.message.sender_address)
 
         def task() -> str:
             return self._fetch_and_score(symbol, caller_str)
@@ -216,7 +216,7 @@ Rate your confidence from 0 to 100 (integer only, no text)."""
             "confidence": confidence,
             "source": source,
             "block_number": gl.block.number,
-            "caller": str(gl.message.sender_account),
+            "caller": str(gl.message.sender_address),
         })
 
         self.sentiment_scores[symbol] = snapshot
@@ -248,12 +248,12 @@ Rate your confidence from 0 to 100 (integer only, no text)."""
         # basic validation
         try:
             parsed = json.loads(sources_json)
-            if not isinstance(parsed, dict):
-                raise ValueError()
         except Exception:
             raise UserError("sources_json must be a valid JSON dictionary")
+        if not isinstance(parsed, dict):
+            raise UserError("sources_json must be a valid JSON dictionary")
             
-        self.user_custom_sources[gl.message.sender_account] = sources_json
+        self.user_custom_sources[gl.message.sender_address] = sources_json
 
     # ── Public view methods ────────────────────────────────────────────────────
 
