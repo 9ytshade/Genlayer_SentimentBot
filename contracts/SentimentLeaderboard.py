@@ -15,7 +15,7 @@ class SentimentLeaderboard(gl.Contract):
     # per-symbol snapshot history, stored as JSON arrays
     sentiment_history: TreeMap[str, str]
     # caller address -> points earned
-    caller_scores: TreeMap[str, u256]
+    caller_scores: TreeMap[Address, u256]
     # ordered list of unique caller address strings (for iteration)
     callers_list: DynArray[str]
     # owner address
@@ -53,7 +53,6 @@ class SentimentLeaderboard(gl.Contract):
         snapshot = {
             "score": score,
             "label": label,
-            "block_number": gl.block.number,
             "caller": str(caller),
         }
 
