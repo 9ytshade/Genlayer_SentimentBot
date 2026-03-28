@@ -26,7 +26,7 @@ class PortfolioAgent(gl.Contract):
     # portfolio weights per user: address -> JSON string of {symbol: weight_pct}
     portfolio_weights: TreeMap[Address, str]
     # user risk profiles: address -> int (1=Conservative, 2=Balanced, 3=Aggressive)
-    user_risk_profiles: TreeMap[Address, int]
+    user_risk_profiles: TreeMap[Address, u256]
     # all trade records as JSON array
     trade_history: DynArray[str]
     # supported assets
@@ -165,7 +165,7 @@ class PortfolioAgent(gl.Contract):
         caller_str = str(gl.message.sender_address)
 
         # Get user risk profile to influence the decision
-        profile_id = self.user_risk_profiles.get(gl.message.sender_address, 2)
+        profile_id = int(self.user_risk_profiles.get(gl.message.sender_address, u256(2)))
         profile_names = {1: "Conservative", 2: "Balanced", 3: "Aggressive"}
         profile_name = profile_names.get(profile_id, "Balanced")
 
@@ -264,7 +264,7 @@ Do not include any other text."""
 
         # Fetch sentiment from oracle
         sentiments_json = self._get_oracle_sentiments()
-        profile_id = self.user_risk_profiles.get(gl.message.sender_address, 2)
+        profile_id = int(self.user_risk_profiles.get(gl.message.sender_address, u256(2)))
         profile_names = {1: "Conservative", 2: "Balanced", 3: "Aggressive"}
         profile_name = profile_names.get(profile_id, "Balanced")
 
@@ -344,7 +344,7 @@ No other text."""
         """Set user risk profile: 1=Conservative, 2=Balanced, 3=Aggressive."""
         if profile_id not in [1, 2, 3]:
             raise UserError("Profile ID must be 1, 2, or 3")
-        self.user_risk_profiles[gl.message.sender_address] = profile_id
+        self.user_risk_profiles[gl.message.sender_address] = u256(profile_id)
 
     @gl.public.write
     def set_oracle_address(self, address: Address) -> None:
@@ -388,7 +388,7 @@ No other text."""
 
     @gl.public.view
     def get_risk_profile(self, user: Address) -> int:
-        return self.user_risk_profiles.get(user, 2)
+        return int(self.user_risk_profiles.get(user, u256(2)))
 
     @gl.public.view
     def get_total_deposited(self) -> u256:
